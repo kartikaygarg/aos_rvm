@@ -8,8 +8,6 @@
 
 using namespace std;
 
-typedef int trans_t;
-
 //class mod_t: public _mod_read
 class mod_t
 {
@@ -49,27 +47,31 @@ redo_t::redo_t(){
 	//ptr = redo_log.begin();
 }
 
-class trans_tt{
+class trans_t{
 	public:
 	unsigned int tid;
 	unsigned int num_seg;
 	char** seg_names;
 	void** seg_bases;
-	redo_t redo_obj;
 	//std::list<segment_t> seg_cur;
 	
 	//std::map<char*,segment_t>::iterator seg_ptr;
 	//bool valid;
 	
-	trans_tt();
+	trans_t();
+	trans_t(int);
 };
 
-trans_tt::trans_tt(){
+trans_t::trans_t(){
 	seg_names = NULL;
 	seg_bases = NULL;
 	tid = 0;
 	num_seg = 0;
 	
+}
+
+trans_t::trans_t(int val){
+	return val;
 }
 
 class segment_t{
@@ -79,7 +81,7 @@ class segment_t{
 	void* segbase;
 	void* undo_log;			//Clear on transaction Commit/abort
 	unsigned int tid;		//Clear on transaction Commit/abort
-	trans_tt* trans;			//Clear to NULL on transaction COmmit/abort
+	trans_t* trans;			//Clear to NULL on transaction COmmit/abort
 	
 	segment_t();
 };
@@ -93,7 +95,7 @@ segment_t::segment_t(){
 	trans = NULL;
 }
 
-class rvm_tt{
+class rvm_t{
 	public:
 	char* dirname;
 	char* redo_file;
@@ -101,13 +103,13 @@ class rvm_tt{
 	std::map<char*,segment_t> seg_db;
 	//std::map<char*,segment_t>::iterator seg_ptr;
 	
-	// std::map<unsigned int,trans_tt> trans;
-	std::map<unsigned int,trans_tt*> trans;
+	// std::map<unsigned int,trans_t> trans;
+	std::map<unsigned int,trans_t*> trans;
 	
-	rvm_tt();
+	rvm_t();
 };
 
-rvm_tt::rvm_tt(){
+rvm_t::rvm_t(){
 	dirname = NULL;
 	redo_file = NULL;
 	//dirname = malloc();
@@ -115,10 +117,8 @@ rvm_tt::rvm_tt(){
 	num_segs = 0;
 }
 
-typedef rvm_tt* rvm_t;
-
 /*
-typedef struct trans_tt{
+typedef struct trans_t{
 	char** segnames;
 	unsigned int id;
 	void** segbases;
@@ -128,17 +128,17 @@ typedef struct trans_tt{
 	int numseg;
 	rvm_t dir;
 	
-}trans_tt;
+}trans_t;
 
 struct _segment_t{
   char* segname;
   void* segbase;
   unsigned int size;
-  trans_tt cur_trans;
+  trans_t cur_trans;
   mod_t* mods;
 };
 
-struct _trans_tt{
+struct _trans_t{
   rvm_t rvm;          //The rvm to which the transaction belongs
   int numsegs;        //The number of segments involved in the transaction
   segment_t* segments;//The array of segments
@@ -175,8 +175,6 @@ struct _rvm_t{
   seqsrchst_t segst;  //A sequential search dictionary mapping base pointers to segment names // 
 };
 */
-
-rvm_tt* rvm_gb = NULL;
 
 rvm_t rvm_init(const char *directory);
 void *rvm_map(rvm_t rvm, const char *segname, int size_to_create);
