@@ -21,7 +21,7 @@ void proc1()
      
      rvm = rvm_init("rvm_segments");
      printf("rvm_init done in proc1 \n");
-     //rvm_destroy(rvm, "testseg");
+     rvm_destroy(rvm, "testseg");
      segs[0] = (char *) rvm_map(rvm, "testseg", 10000);
      printf("rvm_map done in proc1 \n");
      
@@ -53,7 +53,10 @@ void proc2()
      rvm = rvm_init("rvm_segments");
      printf("rvm_init done \n");
      segs[0] = (char *) rvm_map(rvm, "testseg", 10000);
-     printf("rvm_map done \n");
+     printf("first map done \n");
+     rvm_map(rvm, "testseg", 10000);
+     printf("second map done \n");
+     //printf("rvm_map done \n");
      if(strcmp(segs[0], TEST_STRING)) {
 	  printf("ERROR: first hello not present\n");
 	  exit(2);
@@ -80,16 +83,13 @@ int main(int argc, char **argv)
      if(pid == 0) {
 	  proc1();
        printf("proc1 successful ! \n");
-	   fflush(stdout);
 	  exit(0);
      }
 
      waitpid(pid, NULL, 0);
      printf("Before proc2 called \n");
-     fflush(stdout);
-	 proc2();
+     proc2();
      printf("After proc2 called \n");
-	fflush(stdout);
-	
+
      return 0;
 }

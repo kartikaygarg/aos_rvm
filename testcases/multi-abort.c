@@ -1,5 +1,6 @@
 /* multi-abort -- test that aborting works with multiple segments */
-#include "rvm.h"
+#include "../rvm.h"
+#include "../rvm.cpp"
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
