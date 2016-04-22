@@ -512,6 +512,9 @@ void rvm_destroy(rvm_t rvm, const char *segname){
 }
 
 void rvm_exit(rvm_t rvm){
+	if(rvm == NULL){
+		return;
+	}
 	rvm->~rvm_tt();
 	free(rvm);
 	rvm = NULL;
