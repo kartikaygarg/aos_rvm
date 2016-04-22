@@ -141,7 +141,7 @@ void rvm_truncate_log(rvm_t rvm){
 	//Delete redo1.txt file or clear out its contents
 	//Easy way, just open the file in write mode, WILL OVERWRITE!!! and create a blank file
 	
-	//remove(file_name);
+	remove(file_name);
 	free(file_name);
 	
 	
@@ -650,13 +650,13 @@ void rvm_destroy(rvm_t rvm, const char *segname){
 	rvm_truncate_log(rvm);
 	char* index_name = NULL;
 	char* file_name = NULL;
-	file_name = dir_prefix(rvm,segname);
+	file_name = dir_prefix(rvm,(char*)segname);
 	remove(file_name);
 	free(file_name);
 	file_name = NULL;
 	index_name = lookup_name(rvm, segname);
 	if(index_name != NULL){
-		rvm_unmap(rvm->seg_db[].segbase);
-	}
-	index_name = NULL;	
+		rvm_unmap(rvm,rvm->seg_db[index_name].segbase);
+		index_name = NULL;	
+	}	
 }
