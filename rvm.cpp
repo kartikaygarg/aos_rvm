@@ -87,24 +87,24 @@ void rvm_truncate_log(rvm_t rvm){
 		++(redo1.num_updates);
 		//fwrite((void*)(&(redo1.redo_log.front())),sizeof(mod_t),1,redo_seg);	
 		fread((void*) (&(mod1.segname_size)) , sizeof(unsigned int), 1, redo_seg );
-		cout<<"1 "<<mod1.segname_size<<endl;
+		// cout<<"1 "<<mod1.segname_size<<endl;
 		mod1.segname = (char*) malloc(sizeof(char) * mod1.segname_size);
 		fread((void*) (mod1.segname) , sizeof(char), (mod1.segname_size), redo_seg );
 		//fread((void*) (mod1.segname) , sizeof(char), (mod1.segname_size+1), redo_seg );
 		mod1.segname[mod1.segname_size -1] = '\0';
-		cout<<"2 ";
-		puts((char*)mod1.segname);
+		// cout<<"2 ";
+		// puts((char*)mod1.segname);
 		//cout<<endl;
 		fread((void*) (&(mod1.offset)) , sizeof(int), 1, redo_seg );
-		cout<<"3 "<<mod1.offset<<endl;
+		// cout<<"3 "<<mod1.offset<<endl;
 		fread((void*) (&(mod1.size)) , sizeof(int), 1, redo_seg );
-		cout<<"4 "<<mod1.size<<endl;
+		// cout<<"4 "<<mod1.size<<endl;
 		mod1.data_ptr = calloc((mod1.size+1),sizeof(char));
 		// mod1.data_ptr = calloc(mod1.size,sizeof(char));
 		// fread((void*) (mod1.data_ptr) , sizeof(char), ((mod1.size)+1), redo_seg );
 		fread( (mod1.data_ptr) , sizeof(char), ((mod1.size)), redo_seg );
-		cout<<"5 ";
-		puts((char*)mod1.data_ptr);
+		// cout<<"5 ";
+		// puts((char*)mod1.data_ptr);
 		// cout<<endl;
 		redo1.redo_log.push_back(mod1);
 		// if(feof(redo_seg)){
@@ -190,8 +190,8 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 	//remove
 	// if( seg_ptr == rvm->seg_db.end()){	//not present in the map, install and opoen file (if exists), if not, then create an empty file 
 		// segment_t new_seg;
-		cout<<"Segment Mapping was NOT found in map. INSTALLING!!!\n";
-		fflush(stdout);
+		// cout<<"Segment Mapping was NOT found in map. INSTALLING!!!\n";
+		// fflush(stdout);
 		segment_t* new_seg = NULL;
 		new_seg = (segment_t*)malloc(sizeof(segment_t));
 		new (new_seg) segment_t();
@@ -201,7 +201,7 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 		new_seg->segname[strlen(segname)] = '\0';
 		new_seg->segbase = calloc(size_to_create,sizeof(char));
 		//new_seg->segbase = malloc(size_to_create*sizeof(char));
-		cout<<"Segbase allotted: "<<new_seg->segbase<<endl;
+		// cout<<"Segbase allotted: "<<new_seg->segbase<<endl;
 		fseg = fopen(dir_prefix(rvm,seg_name),"ab+");
 		if(fseg == NULL){
 			cout<<"ERROR. Segment file  was NOT found in dir. File unable to open!!!\n";
@@ -209,11 +209,11 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 			return (void*) -1;
 			
 		}	
-		cout<<"File Pointer after OPEN: "<<ftell(fseg)<<endl;
+		// cout<<"File Pointer after OPEN: "<<ftell(fseg)<<endl;
 		fseek(fseg,0,SEEK_SET);
-		cout<<"File Pointer after SEEK: "<<ftell(fseg)<<endl;
+		// cout<<"File Pointer after SEEK: "<<ftell(fseg)<<endl;
 		fread(new_seg->segbase,sizeof(char),size_to_create,fseg);
-		cout<<"File Pointer after READ: "<<ftell(fseg)<<endl;
+		// cout<<"File Pointer after READ: "<<ftell(fseg)<<endl;
 		fclose(fseg);
 		new_seg->size = size_to_create;
 		if(new_seg->undo_log != NULL){		//means currently under some TRANSACTION, since undo log is not NULL || ILLEGAL operation
@@ -227,16 +227,16 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 			// memcpy(new_seg->undo_log,new_seg->segbase,size_to_create);
 		}
 		rvm->seg_db.insert( std::pair<char*,segment_t>(new_seg->segname,*new_seg) );
-		cout<<"Testing segment map insert: ";
-		puts(rvm->seg_db[new_seg->segname].segname);
-		cout<<"  ||  Base ptr: "<<rvm->seg_db[new_seg->segname].segbase<<endl;
+		// cout<<"Testing segment map insert: ";
+		// puts(rvm->seg_db[new_seg->segname].segname);
+		// cout<<"  ||  Base ptr: "<<rvm->seg_db[new_seg->segname].segbase<<endl;
 		return new_seg->segbase;
 	}
 	else{		//present in the map
 		
 		if( rvm->seg_db[seg_ptr].segbase == NULL ){		//currently not mapped to memory (thus surely NO TRANSACTION)
-			cout<<"Segment Mapping found in map, but SEGBASE was NULL.\n";
-			fflush(stdout);
+			// cout<<"Segment Mapping found in map, but SEGBASE was NULL.\n";
+			// fflush(stdout);
 			// rvm->seg_db[seg_ptr].segbase = calloc(size_to_create,sizeof(char));
 			rvm->seg_db[seg_ptr].segbase = malloc(size_to_create*sizeof(char));
 			
@@ -247,11 +247,11 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 				return (void*) -1;
 			
 			}		
-			cout<<"File Pointer after OPEN: "<<ftell(fseg)<<endl;
+			// cout<<"File Pointer after OPEN: "<<ftell(fseg)<<endl;
 			fseek(fseg,0,SEEK_SET);
-			cout<<"File Pointer after SEEK: "<<ftell(fseg)<<endl;
+			// cout<<"File Pointer after SEEK: "<<ftell(fseg)<<endl;
 			fread(rvm->seg_db[seg_ptr].segbase,sizeof(char),size_to_create,fseg);
-			cout<<"File Pointer after READ: "<<ftell(fseg)<<endl;
+			// cout<<"File Pointer after READ: "<<ftell(fseg)<<endl;
 			fclose(fseg);
 			rvm->seg_db[seg_ptr].size = size_to_create;
 			
@@ -289,7 +289,7 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 		}
 		else{		//presently mapped to memory, MAY/MAY NOT being operated on by some transactions
 			
-			cout<<"Segment Mapping found in map, and SEGBASE was NOT NULL. Mapping already exists. NOthing to do!\n";
+			// cout<<"Segment Mapping found in map, and SEGBASE was NOT NULL. Mapping already exists. NOthing to do!\n";
 			
 			/*
 			//void* temp_ptr = NULL;
@@ -401,7 +401,7 @@ void rvm_unmap(rvm_t rvm, void *segbase){
 
 trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
 	if(segbases == NULL){
-		cout<<"Returned EMPTY.\n";
+		// cout<<"Returned EMPTY.\n";
 		return (trans_t) -1;
 	}
 	trans_tt* new_trans = NULL;
@@ -409,18 +409,18 @@ trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
 	new (new_trans) trans_tt();
 	int i=0;
 	new_trans->tid = ++(tid_cnt);
-	std::cout<<"My tid is: "<<tid_cnt<<"\n";
+	// std::cout<<"My tid is: "<<tid_cnt<<"\n";
 	new_trans->num_seg = numsegs;
 	new_trans->seg_names = (char**)malloc(numsegs*sizeof(char*));
 	new_trans->seg_bases = (void**)calloc(numsegs,sizeof(void*));
 	//new_trans->seg_bases = (void**)malloc(numsegs*sizeof(void*));
-	cout<<"Segbases passed to begin_trans: ";
+	// cout<<"Segbases passed to begin_trans: ";
 	for(i=0;i<numsegs;++i){
 		if(segbases[i] == NULL){
 			cout<<"\n Pls CHECK the testcase. One of the passed base pointers to begin_trans() was NULL.\n";
 			return (trans_t) -1;
 		}
-		cout<<i<<segbases[i]<<"\t";
+		// cout<<i<<segbases[i]<<"\t";
 		new_trans->seg_names[i] = base2name(rvm,segbases[i]);
 		if(rvm->seg_db[new_trans->seg_names[i]].undo_log == NULL){
 			if(rvm->seg_db[new_trans->seg_names[i]].tid != 0){
@@ -441,9 +441,9 @@ trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
 		rvm->seg_db[new_trans->seg_names[i]].trans = new_trans;
 		//new_trans->seg_bases[i] = calloc(1,sizeof(void*));
 		new_trans->seg_bases[i] = segbases[i];
-		cout<<"Assigned to new_trans: "<<new_trans->seg_bases[i]<<" || and accessed from seg_db: "<<rvm->seg_db[new_trans->seg_names[i]].segbase<<endl;
+		// cout<<"Assigned to new_trans: "<<new_trans->seg_bases[i]<<" || and accessed from seg_db: "<<rvm->seg_db[new_trans->seg_names[i]].segbase<<endl;
 	}	
-	cout<<endl;
+	// cout<<endl;
 	// rvm->trans.insert( std::pair<unsigned int,trans_tt>(tid_cnt,*new_trans) );
 	rvm->trans.insert( std::pair<unsigned int,trans_tt*>(tid_cnt,new_trans) );
 	return new_trans->tid;
@@ -582,10 +582,10 @@ void rvm_commit_trans(trans_t tid){
 			//fread((void*) (temp->redo_obj.redo_log.front().segname) , sizeof(char), (temp->redo_obj.redo_log.front().segname_size+1), redo_seg );
 			fwrite((void*) (&(temp->redo_obj.redo_log.front().offset)) , sizeof(int), 1, redo_seg );
 			fwrite((void*) (&(temp->redo_obj.redo_log.front().size)) , sizeof(int), 1, redo_seg );
-			cout<<"Offset: "<<temp->redo_obj.redo_log.front().offset<<" || Size: "<<temp->redo_obj.redo_log.front().size<<endl;
+			// cout<<"Offset: "<<temp->redo_obj.redo_log.front().offset<<" || Size: "<<temp->redo_obj.redo_log.front().size<<endl;
 			// fwrite((void*) (  (rvm_gb->seg_db[temp->redo_obj.redo_log.front().segname].segbase) + temp->redo_obj.redo_log.front().offset  ) , sizeof(char), (temp->redo_obj.redo_log.front().size), redo_seg );
 			
-			cout<<"Writing from base ptr: "<<rvm_gb->seg_db[temp->redo_obj.redo_log.front().segname].segbase<<" indexed from name: "<<temp->redo_obj.redo_log.front().segname<<endl;
+			// cout<<"Writing from base ptr: "<<rvm_gb->seg_db[temp->redo_obj.redo_log.front().segname].segbase<<" indexed from name: "<<temp->redo_obj.redo_log.front().segname<<endl;
 			
 			char* temp_data = (char*)(rvm_gb->seg_db[temp->redo_obj.redo_log.front().segname].segbase);
 			for(int i=0; i < (temp->redo_obj.redo_log.front().offset) ;++i,++temp_data){				
