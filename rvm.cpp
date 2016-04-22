@@ -101,8 +101,8 @@ void rvm_truncate_log(rvm_t rvm){
 		cout<<"4 "<<mod1.size<<endl;
 		mod1.data_ptr = calloc((mod1.size+1),sizeof(char));
 		// mod1.data_ptr = calloc(mod1.size,sizeof(char));
-		fread((void*) (mod1.data_ptr) , sizeof(char), ((mod1.size)+1), redo_seg );
-		// fread( (mod1.data_ptr) , sizeof(char), ((mod1.size)), redo_seg );
+		// fread((void*) (mod1.data_ptr) , sizeof(char), ((mod1.size)+1), redo_seg );
+		fread( (mod1.data_ptr) , sizeof(char), ((mod1.size)), redo_seg );
 		cout<<"5 ";
 		puts((char*)mod1.data_ptr);
 		// cout<<endl;
@@ -140,10 +140,26 @@ void rvm_truncate_log(rvm_t rvm){
 	
 	//Delete redo1.txt file or clear out its contents
 	//Easy way, just open the file in write mode, WILL OVERWRITE!!! and create a blank file
-	remove(file_name);
+	
+	//remove(file_name);
 	free(file_name);
 	
 	
+}
+
+char* lookup_name(rvm_t rvm, const char* segname){
+	// char* found_name = NULL;
+	
+	std::map<char*,segment_t>::iterator seg_ptr;
+	seg_ptr = rvm->seg_db.begin();
+	for(;seg_ptr != rvm->seg_db.end();++seg_ptr){
+		if(  strcmp(seg_ptr->second.segname,segname) == 0 ){
+			return seg_ptr->second.segname;
+		}
+	}
+	return NULL;
+	
+	// return NULL;
 }
 
 void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
@@ -157,11 +173,25 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 	seg_name = (char*)malloc((strlen(segname)+1)*sizeof(char));
 	strcpy(seg_name,segname);
 	seg_name[strlen(segname)] = '\0';
-	std::map<char*,segment_t>::iterator seg_ptr;
+	
+	//Remove
+	// std::map<char*,segment_t>::iterator seg_ptr;
+	
 	FILE * fseg = NULL;
-	seg_ptr = rvm->seg_db.find(seg_name);
-	if( seg_ptr == rvm->seg_db.end()){	//not present in the map, install and opoen file (if exists), if not, then create an empty file 
+	
+	char* seg_ptr = NULL;
+	seg_ptr = lookup_name(rvm, segname);
+	
+	//Remove
+	// seg_ptr = rvm->seg_db.find(seg_name);
+	
+	if(seg_ptr == NULL){				//not present in the map, install and opoen file (if exists), if not, then create an empty file 
+		
+	//remove
+	// if( seg_ptr == rvm->seg_db.end()){	//not present in the map, install and opoen file (if exists), if not, then create an empty file 
 		// segment_t new_seg;
+		cout<<"Segment Mapping was NOT found in map. INSTALLING!!!\n";
+		fflush(stdout);
 		segment_t* new_seg = NULL;
 		new_seg = (segment_t*)malloc(sizeof(segment_t));
 		new (new_seg) segment_t();
@@ -170,14 +200,25 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 		// strcat(new_seg->segname,"\0");
 		new_seg->segname[strlen(segname)] = '\0';
 		new_seg->segbase = calloc(size_to_create,sizeof(char));
-		
+		//new_seg->segbase = malloc(size_to_create*sizeof(char));
+		cout<<"Segbase allotted: "<<new_seg->segbase<<endl;
 		fseg = fopen(dir_prefix(rvm,seg_name),"ab+");
+		if(fseg == NULL){
+			cout<<"ERROR. Segment file  was NOT found in dir. File unable to open!!!\n";
+			fflush(stdout);
+			return (void*) -1;
+			
+		}	
+		cout<<"File Pointer after OPEN: "<<ftell(fseg)<<endl;
+		fseek(fseg,0,SEEK_SET);
+		cout<<"File Pointer after SEEK: "<<ftell(fseg)<<endl;
 		fread(new_seg->segbase,sizeof(char),size_to_create,fseg);
+		cout<<"File Pointer after READ: "<<ftell(fseg)<<endl;
 		fclose(fseg);
 		new_seg->size = size_to_create;
 		if(new_seg->undo_log != NULL){		//means currently under some TRANSACTION, since undo log is not NULL || ILLEGAL operation
 			cout<<"\nRECHECK: UNDO_log ptr, is NOT NULL but segbase ptr is NULL!!!";		//Means a transaction was not cleared properly, as UNDO LOG was not cleared & freed
-			
+			fflush(stdout);
 		}	
 		else{		
 			//cout<<"\nRECHECK: UNDO_log ptr, is NULL but segbase ptr is NOT!!!";
@@ -185,88 +226,105 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 			// new_seg->undo_log = calloc(size_to_create,sizeof(char));
 			// memcpy(new_seg->undo_log,new_seg->segbase,size_to_create);
 		}
-		rvm->seg_db.insert( std::pair<char*,segment_t>(seg_name,*new_seg) );
+		rvm->seg_db.insert( std::pair<char*,segment_t>(new_seg->segname,*new_seg) );
+		cout<<"Testing segment map insert: ";
+		puts(rvm->seg_db[new_seg->segname].segname);
+		cout<<"  ||  Base ptr: "<<rvm->seg_db[new_seg->segname].segbase<<endl;
 		return new_seg->segbase;
 	}
-	else{		//present in the map 
-		if( rvm->seg_db[seg_name].segbase == NULL ){		//currently not mapped to memory (thus surely NO TRANSACTION)
-			rvm->seg_db[seg_name].segbase = calloc(size_to_create,sizeof(char));
+	else{		//present in the map
+		
+		if( rvm->seg_db[seg_ptr].segbase == NULL ){		//currently not mapped to memory (thus surely NO TRANSACTION)
+			cout<<"Segment Mapping found in map, but SEGBASE was NULL.\n";
+			fflush(stdout);
+			// rvm->seg_db[seg_ptr].segbase = calloc(size_to_create,sizeof(char));
+			rvm->seg_db[seg_ptr].segbase = malloc(size_to_create*sizeof(char));
 			
-			fseg = fopen(dir_prefix(rvm,seg_name),"rb");
-			fread(rvm->seg_db[seg_name].segbase,sizeof(char),size_to_create,fseg);
+			fseg = fopen(dir_prefix(rvm,seg_ptr),"ab+");
+			if(fseg == NULL){
+				cout<<"ERROR. Segment file was NOT found in dir. File unable to open!!!\n";
+				fflush(stdout);
+				return (void*) -1;
+			
+			}		
+			cout<<"File Pointer after OPEN: "<<ftell(fseg)<<endl;
+			fseek(fseg,0,SEEK_SET);
+			cout<<"File Pointer after SEEK: "<<ftell(fseg)<<endl;
+			fread(rvm->seg_db[seg_ptr].segbase,sizeof(char),size_to_create,fseg);
+			cout<<"File Pointer after READ: "<<ftell(fseg)<<endl;
 			fclose(fseg);
-			rvm->seg_db[seg_name].size = size_to_create;
+			rvm->seg_db[seg_ptr].size = size_to_create;
 			
 			
-			if(rvm->seg_db[seg_name].tid != 0){
+			if(rvm->seg_db[seg_ptr].tid != 0){
 				cout<<"\nRECHECK: TID is NOT 0 but segbase ptr is NULL!!!";		//Means a transaction was not cleared properly, as UNDO LOG was not cleared & freed
 			}
-			if(rvm->seg_db[seg_name].trans != NULL){
+			if(rvm->seg_db[seg_ptr].trans != NULL){
 				cout<<"\nRECHECK: TRANS is NOT NULL but segbase ptr is NULL!!!";		//Means a transaction was not cleared properly, as UNDO LOG was not cleared & freed
 			}
 			
-			rvm->seg_db[seg_name].tid = 0;
-			rvm->seg_db[seg_name].trans = NULL;
+			rvm->seg_db[seg_ptr].tid = 0;
+			rvm->seg_db[seg_ptr].trans = NULL;
 			
-			if(rvm->seg_db[seg_name].undo_log != NULL){		//means currently under some TRANSACTION, since undo log is not NULL || ILLEGAL operation
+			if(rvm->seg_db[seg_ptr].undo_log != NULL){		//means currently under some TRANSACTION, since undo log is not NULL || ILLEGAL operation
 				cout<<"\nRECHECK: UNDO_log ptr, is NOT NULL but segbase ptr is NULL!!!";		//Means a transaction was not cleared properly, as UNDO LOG was not cleared & freed
-				free(rvm->seg_db[seg_name].undo_log);
+				free(rvm->seg_db[seg_ptr].undo_log);
 				
-				// rvm->seg_db[seg_name]->undo_log = calloc(size_to_create,sizeof(char));
-				// memcpy(rvm->seg_db[seg_name]->undo_log,rvm->seg_db[seg_name]->segbase,size_to_create);
+				// rvm->seg_db[seg_ptr]->undo_log = calloc(size_to_create,sizeof(char));
+				// memcpy(rvm->seg_db[seg_ptr]->undo_log,rvm->seg_db[seg_ptr]->segbase,size_to_create);
 				
 			}	
 			else{		
 				//cout<<"\nRECHECK: UNDO_log ptr, is NULL but segbase ptr is NOT!!!";
 				
-				// rvm->seg_db[seg_name]->undo_log = calloc(size_to_create,sizeof(char));
-				// memcpy(rvm->seg_db[seg_name]->undo_log,rvm->seg_db[seg_name]->segbase,size_to_create);
+				// rvm->seg_db[seg_ptr]->undo_log = calloc(size_to_create,sizeof(char));
+				// memcpy(rvm->seg_db[seg_ptr]->undo_log,rvm->seg_db[seg_ptr]->segbase,size_to_create);
 			}	
 			
 			//CAN't DO here: since create UNDO logs in begin_trans() and not here in map
-			// rvm->seg_db[seg_name].undo_log = calloc(size_to_create,sizeof(char));
-			// memcpy(rvm->seg_db[seg_name].undo_log,rvm->seg_db[seg_name].segbase,size_to_create);
+			// rvm->seg_db[seg_ptr].undo_log = calloc(size_to_create,sizeof(char));
+			// memcpy(rvm->seg_db[seg_ptr].undo_log,rvm->seg_db[seg_ptr].segbase,size_to_create);
 			
-			return rvm->seg_db[seg_name].segbase;
+			return rvm->seg_db[seg_ptr].segbase;
 		}
 		else{		//presently mapped to memory, MAY/MAY NOT being operated on by some transactions
 			
-			
+			cout<<"Segment Mapping found in map, and SEGBASE was NOT NULL. Mapping already exists. NOthing to do!\n";
 			
 			/*
 			//void* temp_ptr = NULL;
 			
 			//Create a new copy of the UNDO log on the mapping function call
 			
-			if(rvm->seg_db[seg_name].undo_log != NULL){		//means currently under some TRANSACTION, since undo log is not NULL || ILLEGAL operation
-				//free(rvm->seg_db[seg_name].undo_log);	
+			if(rvm->seg_db[seg_ptr].undo_log != NULL){		//means currently under some TRANSACTION, since undo log is not NULL || ILLEGAL operation
+				//free(rvm->seg_db[seg_ptr].undo_log);	
 			
 			}	
 			else{		
 				//cout<<"\nRECHECK: UNDO_log ptr, is NULL but segbase ptr is NOT!!!";		//Was Possible, since memory could be mapped but not under any TRANSACTION
-				//rvm->seg_db[seg_name].undo_log = calloc(size_to_create,sizeof(char));
+				//rvm->seg_db[seg_ptr].undo_log = calloc(size_to_create,sizeof(char));
 			}
 				
 			
 			//temp_ptr = calloc(size_to_create,sizeof(char));
-			if(rvm->seg_db[seg_name].size < size_to_create){
-				//memcpy(temp_ptr,rvm->seg_db[seg_name].segbase,rvm->seg_db[seg_name].size);
-				//free(rvm->seg_db[seg_name].segbase);
+			if(rvm->seg_db[seg_ptr].size < size_to_create){
+				//memcpy(temp_ptr,rvm->seg_db[seg_ptr].segbase,rvm->seg_db[seg_ptr].size);
+				//free(rvm->seg_db[seg_ptr].segbase);
 			}
-			else if(rvm->seg_db[seg_name].size > size_to_create){
-				//memcpy(temp_ptr,rvm->seg_db[seg_name].segbase,size_to_create);
-				//free(rvm->seg_db[seg_name].segbase);
+			else if(rvm->seg_db[seg_ptr].size > size_to_create){
+				//memcpy(temp_ptr,rvm->seg_db[seg_ptr].segbase,size_to_create);
+				//free(rvm->seg_db[seg_ptr].segbase);
 			}
 			else{		//equal to already what exists
 				//no steps to be taken, simply return
 				
 			}
 			
-			//memcpy(rvm->seg_db[seg_name].undo_log,rvm->seg_db[seg_name].segbase,size_to_create);
+			//memcpy(rvm->seg_db[seg_ptr].undo_log,rvm->seg_db[seg_ptr].segbase,size_to_create);
 			//ASK: re-create the UNDO log entry for every case, (RECREATE UNDO LOG/refresh it for an existing mapping??)
 			
-			//rvm->seg_db[seg_name].segbase = temp_ptr;
-			//rvm->seg_db[seg_name].size = size_to_create;
+			//rvm->seg_db[seg_ptr].segbase = temp_ptr;
+			//rvm->seg_db[seg_ptr].size = size_to_create;
 			*/
 			
 			return (void *) -1;		//ASK: if return -1, for all cases, if mapping exists, whether it may be same/small/bigger size
@@ -286,6 +344,9 @@ char* base2name(rvm_t rvm,void* segbase){
 }
 
 void rvm_unmap(rvm_t rvm, void *segbase){
+	if( (segbase == NULL) || (rvm == NULL) ){
+		return;
+	}
 	char* temp_segname = NULL;
 	// temp_segname = (char*)malloc(strlen(base2name(rvm,segbase))+1);
 	temp_segname = base2name(rvm,segbase);
@@ -317,6 +378,8 @@ void rvm_unmap(rvm_t rvm, void *segbase){
 					
 					free(rvm->seg_db[rvm->seg_db[temp_segname].trans->seg_names[i]].undo_log);
 					rvm->seg_db[rvm->seg_db[temp_segname].trans->seg_names[i]].undo_log = NULL;
+					
+					rvm->seg_db[rvm->seg_db[temp_segname].trans->seg_names[i]].trans = NULL;
 				}	
 			}
 			//POP from trans_db
@@ -349,33 +412,38 @@ trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
 	std::cout<<"My tid is: "<<tid_cnt<<"\n";
 	new_trans->num_seg = numsegs;
 	new_trans->seg_names = (char**)malloc(numsegs*sizeof(char*));
-	// new_trans->seg_bases = (void**)calloc(numsegs,sizeof(void*));
-	new_trans->seg_bases = (void**)malloc(numsegs*sizeof(void*));
+	new_trans->seg_bases = (void**)calloc(numsegs,sizeof(void*));
+	//new_trans->seg_bases = (void**)malloc(numsegs*sizeof(void*));
+	cout<<"Segbases passed to begin_trans: ";
 	for(i=0;i<numsegs;++i){
 		if(segbases[i] == NULL){
 			cout<<"\n Pls CHECK the testcase. One of the passed base pointers to begin_trans() was NULL.\n";
 			return (trans_t) -1;
 		}
+		cout<<i<<segbases[i]<<"\t";
 		new_trans->seg_names[i] = base2name(rvm,segbases[i]);
 		if(rvm->seg_db[new_trans->seg_names[i]].undo_log == NULL){
 			if(rvm->seg_db[new_trans->seg_names[i]].tid != 0){
-				cout<<"\nRECHECK: UNDO_log ptr, is NULL but segment.TID is NOT 0!!!";		//Means a transaction was not cleared properly, as UNDO LOG was not cleared & freed
+				cout<<"\nRECHECK: UNDO_log ptr, is NULL but segment.TID is NOT 0!!!\n";		//Means a transaction was not cleared properly, as UNDO LOG was not cleared & freed
 			}
 			if(rvm->seg_db[new_trans->seg_names[i]].trans != NULL){
-				cout<<"\nRECHECK: UNDO_log ptr, is NULL but TRANS ptr is NOT NULL!!!";		//Means a transaction was not cleared properly, as UNDO LOG was not cleared & freed
+				cout<<"\nRECHECK: UNDO_log ptr, is NULL but TRANS ptr is NOT NULL!!!\n";		//Means a transaction was not cleared properly, as UNDO LOG was not cleared & freed
 			}
 			rvm->seg_db[new_trans->seg_names[i]].undo_log = calloc( rvm->seg_db[new_trans->seg_names[i]].size , sizeof(char) );
 			memcpy(rvm->seg_db[new_trans->seg_names[i]].undo_log,segbases[i],rvm->seg_db[new_trans->seg_names[i]].size);
 		}
 		else{		//ALREADY BEING OPERATED BY SOME OTHER TRANSACTION
+			cout<<"Segment is already under operation by SOME OTHER TRANSaction.\n";
 			return (trans_t) -1;
 			break;
 		}
 		rvm->seg_db[new_trans->seg_names[i]].tid = tid_cnt;
 		rvm->seg_db[new_trans->seg_names[i]].trans = new_trans;
-		new_trans->seg_bases[i] = calloc(1,sizeof(void*));
+		//new_trans->seg_bases[i] = calloc(1,sizeof(void*));
 		new_trans->seg_bases[i] = segbases[i];
+		cout<<"Assigned to new_trans: "<<new_trans->seg_bases[i]<<" || and accessed from seg_db: "<<rvm->seg_db[new_trans->seg_names[i]].segbase<<endl;
 	}	
+	cout<<endl;
 	// rvm->trans.insert( std::pair<unsigned int,trans_tt>(tid_cnt,*new_trans) );
 	rvm->trans.insert( std::pair<unsigned int,trans_tt*>(tid_cnt,new_trans) );
 	return new_trans->tid;
@@ -404,6 +472,9 @@ void rvm_abort_trans(trans_t tid){		//Just like receiving an object
 				
 				free(rvm_gb->seg_db[temp->seg_names[i]].undo_log);
 				rvm_gb->seg_db[temp->seg_names[i]].undo_log = NULL;
+				
+				//free(rvm_gb->seg_db[temp->seg_names[i]].trans);
+				rvm_gb->seg_db[temp->seg_names[i]].trans = NULL;
 			//}
 			
 		}
@@ -416,7 +487,7 @@ void rvm_abort_trans(trans_t tid){		//Just like receiving an object
 			// free(temp->redo_obj.redo_log.front()->data_ptr);
 			
 		// }
-		// temp->redo_obj.num_updates = 0;
+		temp->redo_obj.num_updates = 0;
 		//POP from trans_db
 
 		rvm_gb->trans.erase(temp->tid);
@@ -444,6 +515,10 @@ void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
 		new_mod = (mod_t*)calloc(1,sizeof(mod_t));
 		new (new_mod) mod_t();
 		new_mod->segname = base2name(rvm_gb,segbase);
+		if(new_mod->segname == NULL){
+			cout<<"ERROR. Segment doesn't exist in the segment database!\n";
+			fflush(stdout);
+		}
 		new_mod->segname_size = strlen(new_mod->segname)+1;
 		new_mod->offset = offset;
 		new_mod->size = size;
@@ -509,9 +584,17 @@ void rvm_commit_trans(trans_t tid){
 			fwrite((void*) (&(temp->redo_obj.redo_log.front().size)) , sizeof(int), 1, redo_seg );
 			cout<<"Offset: "<<temp->redo_obj.redo_log.front().offset<<" || Size: "<<temp->redo_obj.redo_log.front().size<<endl;
 			// fwrite((void*) (  (rvm_gb->seg_db[temp->redo_obj.redo_log.front().segname].segbase) + temp->redo_obj.redo_log.front().offset  ) , sizeof(char), (temp->redo_obj.redo_log.front().size), redo_seg );
-
+			
+			cout<<"Writing from base ptr: "<<rvm_gb->seg_db[temp->redo_obj.redo_log.front().segname].segbase<<" indexed from name: "<<temp->redo_obj.redo_log.front().segname<<endl;
+			
+			char* temp_data = (char*)(rvm_gb->seg_db[temp->redo_obj.redo_log.front().segname].segbase);
+			for(int i=0; i < (temp->redo_obj.redo_log.front().offset) ;++i,++temp_data){				
+			}
+			
+			fwrite( (void*)temp_data , sizeof(char), (temp->redo_obj.redo_log.front().size), redo_seg );
 			//TO-DO: TRY this
 			// fwrite( &(rvm_gb->seg_db[temp->redo_obj.redo_log.front().segname].segbase[temp->redo_obj.redo_log.front().offset]  ) , sizeof(char), (temp->redo_obj.redo_log.front().size), redo_seg );
+			//fwrite( ( (rvm_gb->seg_db[temp->redo_obj.redo_log.front().segname].segbase) + temp->redo_obj.redo_log.front().offset  ) , sizeof(char), temp->redo_obj.redo_log.front().size, redo_seg );
 			
 			// fwrite((void*) (temp->redo_obj.redo_log.front().data_ptr) , sizeof(char), (temp->redo_obj.redo_log.front().size), redo_seg );
 			// fwrite((void*) (temp->redo_obj.redo_log.front().data_ptr) , sizeof(char), ((temp->redo_obj.redo_log.front().size)+1), redo_seg );
@@ -531,6 +614,8 @@ void rvm_commit_trans(trans_t tid){
 				
 				free(rvm_gb->seg_db[temp->seg_names[i]].undo_log);
 				rvm_gb->seg_db[temp->seg_names[i]].undo_log = NULL;
+				
+				rvm_gb->seg_db[temp->seg_names[i]].trans = NULL;
 			//}
 			
 		}
@@ -543,7 +628,7 @@ void rvm_commit_trans(trans_t tid){
 			// free(temp->redo_obj.redo_log.front().data_ptr);
 			
 		// }
-		// temp->redo_obj.num_updates = 0;
+		temp->redo_obj.num_updates = 0;
 		//POP from trans_db
 		rvm_gb->trans.erase(temp->tid);
 		temp->tid = 0;
@@ -556,4 +641,22 @@ void rvm_commit_trans(trans_t tid){
 		cout<<"Invalid operation. The transaction doesn't exist anymore. Perhaps you unmapped a segment belonging to the transaction, which led to automatic deletion of the transaction.\n";
 		return;
 	}
+}
+
+void rvm_destroy(rvm_t rvm, const char *segname){
+	if(segname == NULL){
+		return;
+	}
+	rvm_truncate_log(rvm);
+	char* index_name = NULL;
+	char* file_name = NULL;
+	file_name = dir_prefix(rvm,segname);
+	remove(file_name);
+	free(file_name);
+	file_name = NULL;
+	index_name = lookup_name(rvm, segname);
+	if(index_name != NULL){
+		rvm_unmap(rvm->seg_db[].segbase);
+	}
+	index_name = NULL;	
 }
