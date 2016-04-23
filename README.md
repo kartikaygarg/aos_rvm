@@ -1,2 +1,58 @@
 # aos_rvm
-Advanced Operating Systems (Lightweight Recoverable Virtual Memory)
+Project 4: Advanced Operating Systems (Lightweight Recoverable Virtual Memory)
+
+Team Members:
+Rudra Purohit (rpurohit3)
+Kartikay Garg (kgarg40)
+
+STEPS TO COMPILE AND RUN THE TESTCASES:
+1. Extract the contents of the .tar file into a directory. 
+
+2. A makefile has been attached for proper compilation process and to resolve dependencies as per the directory structure explained. Run "make" to make the library as follows:
+	      $make
+
+3. This creates the file librvm.a
+
+4. Now, you can compile and run the testcases you want after placing the testcase.c file inside the testcases folder. The command to compile and run the basic.c testcase is as follows:
+        $ g++ -o basic basic.c
+        $ ./basic
+
+
+1) How log files are used to accomplish persistency and transaction semantics ?
+
+- In this project, accomplishing persistency is the primary objective which will make the system recoverable from crashes. 
+- The redo log files for each segment on the disk in order to ensure persistency of data.
+- There is also an undo record created in memory, that has the original data at the location being modified. When a transaction commits successfully, the new memory value along with its offset is written to the redo log corresponding to that particular segment. 
+- But if a transaction aborts or does not commit successfully, the original value from the undo record is written to the corresponding memory location which was being modified by the transaction in order to maintain persistency of data. 
+ 
+2) What is written in them? How do the files get cleaned up, so that they do not expand indefinitely?
+ The following is written inside the log file in the given order. 
+ a.segname_size ( The number of characters of filename )
+ b.segname ( The filename )
+ c.offset ( The number of bytes of offset before the changes need to be applied )
+ d.size ( The number of bytes of data which are actually modified )
+ e.data 
+ 
+ Also, these changes are sequentially written and applied in the order of rvm_about_to_modify() calls in program to ensure consistency in order of changes in the program. 
+- The programmer can explicitly call truncate_log() and flush all the changes in each redo log file on the disk to its corresponding data segment. Also, this leads to deletion/cleaning of existing log files after their updation to persistent disk segment files.
+- When map a previously unmapped segment from the file, we call truncate_log internally, to clean up logs, since we anyways have access the disk to fetch the file, thus opportunistically reducing the number of disk accesses.
+- We also call the truncate_log() function internally at time of rvm_init() in order to clean up the log files, ensuring the log files don't expand indefinately due to a previous run.
+
+
+
+Directory Structure:
+
+After extracting the contents of the .tar file, a directory named prj4 will be created.
+The following files and subdirectories should be present inside the prj4
+directory:
+
+ testcases/
+    It includes the different testcases.c files which test the implementation of the recoverable virtual memory.
+   
+   rvm_segments/
+    The testseg files on compilation are created inside it. This is a representation of the persistent disk storage space.
+ 
+ rvm.cpp - The implementation of recoverable virtual memory interfaces.
+ rvm.h - It contains all the function declarations which are defined in rvm.cpp file.
+ rvm_internal.h - It defines the data structures which are used for the rvm implementation.
+ Makefile - 
